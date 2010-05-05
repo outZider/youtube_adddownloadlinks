@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name          YouTube_AddDownloadLinks
 // @namespace     
-// @description   Adding download links above the player region.
+// @description   ダウンロード用リンク（MP4,FLV,3GP）を表示します
 // @include       http://*youtube.com/watch*
-// @version       0.1.0
+// @version       0.2.2
 // @author        outZider
 // ==/UserScript==
 (function() {
+
 var formats = [
   {fmt: 37, dsc: "MP4(HD1080p H.264/AAC)", available: false},
   {fmt: 22, dsc: "MP4(HD720p H.264/AAC)", available: false},
@@ -41,13 +42,18 @@ for (var i = 0; i < args.length; i++) {
   }
 }
 var al = document.createElement("div");
-al.style.padding = "4px";
+al.style.margin = "4px 0px 0px 0px";
+al.style.padding = "3px";
 al.style.MozBorderRadius = "6px";
 al.style.backgroundColor = "#ddd";
+al.id = "div-ytadl";
 var ht = "";
 for (var i = 0; i < formats.length; i++) {
   if (formats[i].available) {
-    ht += "<a href='http://" + location.host + "/get_video?video_id=" + video_id + "&t=" + t + "&fmt=" + formats[i].fmt + "'>" + formats[i].dsc + "</a>";
+    ht += "<a class='ytadllink' ";
+    ht += "href='" + "http://" + location.host + "/get_video?video_id=" + video_id + "&t=" + t + "&fmt=" + formats[i].fmt + "' ";
+    var filename = document.getElementById("watch-headline-title").textContent.replace(/^\s+/, "").replace(/\s+$/, "").replace(/[\\\/\"]/g, "_").replace(/\s/g, "+").replace(/%/g, "%25").replace(/&/g, "%26").replace(/#/g, "%23").replace(/\'/g, "%27").replace(/,/g, "%2c").replace(/=/g, "%3d").replace(/\?/g, "%3f");
+    ht += "title='" + filename + "'>" + formats[i].dsc + "</a>";
   }
   else {
     ht += "<font color='#bbb'>" + formats[i].dsc + "</font>";
@@ -56,4 +62,29 @@ for (var i = 0; i < formats.length; i++) {
 }
 al.innerHTML = ht;
 document.getElementById("watch-headline").appendChild(al);
+var links = document.getElementsByClassName("ytadllink");
+for (var i = 0; i < links.length; i++) {
+  links[i].addEventListener("click", function(e) {
+    if (e.button == 0) {
+      document.getElementById("div-ytadl").setAttribute("title", e.currentTarget.getAttribute("title"));
+      var xhr = GM_xmlhttpRequest({
+        method: "GET",
+        url: e.currentTarget.getAttribute("href"),
+        onreadystatechange: function(response) {
+          if (response.readyState == 2 || response.readyState == 3) {
+            xhr.abort();
+          }
+          else if (response.readyState == 4) {
+            document.location.href = response.finalUrl + "&title=" + document.getElementById("div-ytadl").getAttribute("title");
+          }
+        },
+        onerror: function(response) {
+          alert("YTADL: error");
+        }
+      });
+    }
+    e.preventDefault();
+  }, false);
+}
+
 })();
